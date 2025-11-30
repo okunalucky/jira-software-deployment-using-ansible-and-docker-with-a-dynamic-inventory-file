@@ -262,3 +262,5 @@ ansible-galaxy collection install community.docker --force
 ```sh
 ansible-playbook -i ansible_aws/inventory/aws_ec2.yml ansible_aws/deploy_jira.yml -u ec2-user --private /home/ansible/.ssh/myteam.pem -vvv
 ```
+<img width="1240" height="658" alt="Image" src="https://github.com/user-attachments/assets/5db562fb-85ae-47be-999e-83338511c6bb" />
+# jira set up
