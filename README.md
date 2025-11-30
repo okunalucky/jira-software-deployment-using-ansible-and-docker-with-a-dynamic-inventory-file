@@ -59,3 +59,60 @@ sudo chmod 600 myteam.pem
 sudo chown ansible:ansible /home/ansible/.ssh/myteam.pem
 sudo chmod 400 / home/ansible/.ssh/myteam.pem
 ```
+- Create a directory called ansible_aws and follow the commands below:
+```sh
+mkdir ansible_aws
+cd ansible_aws
+mkdir inventory
+ls
+cd inventory/
+sudo nano aws_ec2.yml
+```
+- Paste the code below into the aws_ec2.yml
+```yaml
+plugin: amazon.aws.aws_ec2
+
+regions:
+  - us-east-1
+
+filters:
+  instance-state-name: running
+  "tag:Name": Webservers
+  "tag:Env": Production
+
+hostnames:
+  - tag:Name
+
+compose:
+  ansible_host: private_ip_address
+
+keyed_groups:
+  - key: tags.Env
+    prefix: tag_Env
+  - key: tags.Name
+    prefix: tag_Name
+
+strict: False
+
+```
+- Create the ansible.cfg file
+```sh
+cd ~
+cd ansible_aws/
+sudo nano ansible.cfg
+```
+- Paste in the code for the ansible.cfg
+
+```yaml
+[defaults]
+inventory= ./inventory/aws_ec2.yml
+host_key_checking = False
+collections_paths = ~/.ansible/collections:/usr/share/ansible/collections
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+```
+- Test if the inventory file will automatically pick the instance in the aws environment
+```sh
+cd ~ 
+cd ansible_aws/
+ansible-inventory -i ~/ansible_aws/inventory/aws_ec2.yml --list
+```
