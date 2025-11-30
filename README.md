@@ -1,5 +1,8 @@
 # jira-software-deployment-using-ansible-and-docker-with-a-dynamic-inventory-file
 <img width="841" height="581" alt="Image" src="https://github.com/user-attachments/assets/48e5da7f-a771-4b7a-933a-b3b68432e0dc" />
+
+
+
 - Create an instance called Control which serves as the master node;
 specifications:amazon linux 2023 ami, t2.micro, set the inboud traffic rule and under advanced data, select amazon ec2 full access
 - Create an instance called Webservers which serves as the slave node;
