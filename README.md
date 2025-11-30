@@ -24,6 +24,10 @@ sudo nano /etc/ssh/sshd_config
 ```sh
 sudo systemctl restart sshd
 ```
+- Add ansible to the sudoers group
+ ```sh
+sudo nano /etc/sudoers
+```
 - Navigate to the home directory of the ansible user, update dnf. install ansiblr, boto 3, python 3 and ansible 
 ```sh
  cd ~
@@ -115,4 +119,146 @@ ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 cd ~ 
 cd ansible_aws/
 ansible-inventory -i ~/ansible_aws/inventory/aws_ec2.yml --list
+```
+- Create the docker compose file
+```sh
+sudo nano docker-compose.yml
+```
+- Paste the code into docker-compose.yml
+
+```sh
+version: '3'
+services:
+  jira:
+    image: atlassian/jira-software:9.15  # Use a stable version, not "latest"
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    environment:
+      ATL_JDBC_URL: jdbc:postgresql://db:5432/jiradb
+      ATL_JDBC_USER: jirauser
+      ATL_JDBC_PASSWORD: jirapassword
+      ATL_DB_TYPE: postgres72
+    volumes:
+      - jira-data:/var/atlassian/jira
+
+  db:
+    image: postgres:12      # Jira 9 supports PostgreSQL 10–14 (NOT 9.6)
+    environment:
+      POSTGRES_DB: jiradb
+      POSTGRES_USER: jirauser
+      POSTGRES_PASSWORD: jirapassword
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jirauser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  jira-data:
+  db-data:
+```
+- Create the playbook deploy_jira.yml
+ ```sh
+sudo nano deploy_jira.yml
+```
+- Paste in the code below
+```yaml
+---
+- name: Deploy Jira via Docker Compose on Amazon Linux 2023
+  hosts: "tag_Name_Webservers:&tag_Env_Production"
+  gather_facts: yes
+  become: true
+  vars:
+    ansible_user: ec2-user
+    ansible_python_interpreter: /usr/bin/python3
+    jira_project_dir: /opt/jira
+    compose_version: "v2.27.1"
+    compose_url: "https://github.com/docker/compose/releases/download/{{ compose_version }}/docker-compose-linux-x86_64"
+
+  tasks:
+    # 1. Install Docker engine
+    - name: Install Docker engine
+      ansible.builtin.dnf:
+        name: docker
+        state: present
+
+    # 2. Ensure Docker service is started and enabled
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # 3. Create CLI plugin directory for Docker Compose v2
+    - name: Create CLI plugin directory for Docker Compose v2
+      ansible.builtin.file:
+        path: /usr/local/lib/docker/cli-plugins
+        state: directory
+        mode: '0755'
+
+    # 4. Install Docker Compose v2 plugin
+    - name: Install Docker Compose v2 plugin
+      ansible.builtin.get_url:
+        url: "{{ compose_url }}"
+        dest: /usr/local/lib/docker/cli-plugins/docker-compose
+        mode: '0755'
+
+    # 5. Create Jira project directory
+    - name: Create Jira project directory
+      ansible.builtin.file:
+        path: "{{ jira_project_dir }}"
+        state: directory
+        mode: '0755'
+
+    # 6. Copy your Compose file from control node to target node
+    - name: Copy Docker Compose file from local to remote
+      ansible.builtin.copy:
+        src: "{{ lookup('env', 'HOME') }}/ansible_aws/docker-compose.yml"
+        dest: "{{ jira_project_dir }}/docker-compose.yml"
+        mode: '0644'
+
+    # 7. Deploy Jira stack using Docker Compose v2
+    - name: Deploy Jira stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ jira_project_dir }}"
+        state: present
+```
+- Configure the Webservers
+```sh
+sudo nano web.yml
+```
+- Paste in the code below:
+  
+```yaml
+---
+- name: Configure Production Webservers
+  hosts: "tag_Name_Webservers:&tag_Env_Production"
+  gather_facts: yes
+  become: yes
+  vars:
+    ansible_user: ec2-user
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Ensure Nginx is installed
+      ansible.builtin.package:
+          name: nginx
+          state: present
+    - name: Start Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+```
+- Install the latest ansible galaxy collection
+```sh
+ansible-galaxy collection install community.docker --force
+```
+- Run the playbook
+  
+```sh
+ansible-playbook -i ansible_aws/inventory/aws_ec2.yml ansible_aws/deploy_jira.yml -u ec2-user --private /home/ansible/.ssh/myteam.pem -vvv
 ```
