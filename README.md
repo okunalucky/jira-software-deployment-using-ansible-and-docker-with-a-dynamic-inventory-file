@@ -32,3 +32,30 @@ sudo dnf install -y ansible-core python3-pip jq awscli
 python3 -m pip install --user boto3 botocore
 ansible-galaxy collection install amazon.aws
 ```    
+- Create the .ssh directory
+```sh
+mkdir ~/.ssh
+```
+- Long list to check the file permission
+
+```sh
+ls -la
+```
+- Change the file permission using:
+ 
+ ```sh
+chmod 700 ~/.ssh
+```
+```sh
+cd .ssh/
+```
+- Copy and paste the key pair in the worker node into myteam.pm
+```sh
+sudo nano myteam.pem
+```
+- Change the file permissions
+```sh
+sudo chmod 600 myteam.pem
+sudo chown ansible:ansible /home/ansible/.ssh/myteam.pem
+sudo chmod 400 / home/ansible/.ssh/myteam.pem
+```
